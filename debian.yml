@@ -2,9 +2,18 @@
 - name: Init 
   become: yes
   hosts: all
+
   vars:
     ssh_user: "{{ ansible_user }}"
-    ssh_pubkey_path: "~/.ssh/id_ed25519.pub"
+    ssh_pubkey_path: "~/.ssh/id_ed25519.pub" # Path for pubkeys
+
+    # Chose if you wann install docker, create user node and add to docker group
+    install_docker: true
+    create_node_user: true
+    add_node_to_docker_group: true
+    
+    #password for user node
+    node_password: '$6$bacHgWD2L6K0chjb$DCg3bY.o12p5yUFSf1k7x1a4l1Od1/JzctfigK9f4qZ.wR1Jt2Vg1sDe.rBJ7rRSHodoNqMaCTqk.AWXu/ya4.'
 
   tasks:
     - name: Display Host info
@@ -47,6 +56,14 @@
         state: present
       notify: Restart SSHD
 
+    - name: Disable password authentication for SSH
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication\s+'
+        line: 'PasswordAuthentication no'
+        state: present
+      notify: Restart SSHD
+
     - name: Change SSH port to 2222
       lineinfile:
         path: /etc/ssh/sshd_config
@@ -55,12 +72,37 @@
         state: present
       notify: Restart SSHD
 
-    - name: Create user with hashed password
+    - name: Create user 'node'
       user:
         name: node
         shell: /bin/bash
         state: present
-        password: '$6$bacHgWD2L6K0chjb$DCg3bY.o12p5yUFSf1k7x1a4l1Od1/JzctfigK9f4qZ.wR1Jt2Vg1sDe.rBJ7rRSHodoNqMaCTqk.AWXu/ya4.' 
+        password: "{{ node_password }}"
+      when: create_node_user
+
+    - name: Install Docker
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+        state: present
+      when: install_docker
+
+    - name: Start Docker Service
+      service:
+        name: docker
+        state: started
+      when: install_docker
+
+    - name: Add user 'node' to docker group
+      user:
+        name: node
+        groups: docker
+        append: yes
+      when:
+        - add_node_to_docker_group
+        - create_node_user
+        - install_docker
 
   handlers:
     - name: Restart SSHD
