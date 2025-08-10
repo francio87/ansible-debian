@@ -55,6 +55,13 @@
         state: present
       notify: Restart SSHD
 
+    - name: Create user with hashed password
+      user:
+        name: node
+        shell: /bin/bash
+        state: present
+        password: '$6$bacHgWD2L6K0chjb$DCg3bY.o12p5yUFSf1k7x1a4l1Od1/JzctfigK9f4qZ.wR1Jt2Vg1sDe.rBJ7rRSHodoNqMaCTqk.AWXu/ya4.' 
+
   handlers:
     - name: Restart SSHD
       service:
