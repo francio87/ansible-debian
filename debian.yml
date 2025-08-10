@@ -27,6 +27,7 @@
           - tmux
           - vim
           - htop
+          - curl
           - conntrack
           - unattended-upgrades
         state: present
