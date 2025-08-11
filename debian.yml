@@ -2,6 +2,7 @@
 - name: Init
   become: yes
   hosts: all
+  gather_facts: yes
 
   vars:
     ssh_user: "{{ ansible_user }}"
@@ -14,7 +15,7 @@
     add_node_to_docker_group: true
 
     # password for user node
-    node_password: '$6$bacHgWD2L6K0chjb$DCg3bY.o12p5yUFSf1k7x1a4l1Od1/JzctfigK9f4qZ.wR1Jt2Vg1sDe.rBJ7rRSHodoNqMaCTqk.AWXu/ya4.'
+    node_password: "$6$bacHgWD2L6K0chjb$DCg3bY.o12p5yUFSf1k7x1a4l1Od1/JzctfigK9f4qZ.wR1Jt2Vg1sDe.rBJ7rRSHodoNqMaCTqk.AWXu/ya4."
 
   tasks:
     - name: Display Host info
@@ -53,7 +54,7 @@
       lineinfile:
         path: /etc/ssh/sshd_config
         regexp: '^#?PermitRootLogin\s+'
-        line: 'PermitRootLogin no'
+        line: "PermitRootLogin no"
         state: present
       notify: Restart SSHD
 
@@ -61,7 +62,7 @@
       lineinfile:
         path: /etc/ssh/sshd_config
         regexp: '^#?PasswordAuthentication\s+'
-        line: 'PasswordAuthentication no'
+        line: "PasswordAuthentication no"
         state: present
       notify: Restart SSHD
 
@@ -69,7 +70,7 @@
       lineinfile:
         path: /etc/ssh/sshd_config
         regexp: '^#?Port\s+'
-        line: 'Port 2222'
+        line: "Port 2222"
         state: present
       notify: Restart SSHD
 
@@ -81,7 +82,6 @@
         password: "{{ node_password }}"
       when: create_node_user
 
-
     - name: Install required packages for docker
       apt:
         name:
@@ -90,12 +90,7 @@
           - curl
           - gpg
         state: present
- 
-#    - name: Add Docker GPG key
-#      apt_key:
-#        url: https://download.docker.com/linux/debian/gpg
-#        state: present
-
+      when: install_docker
 
     - name: Add Docker CE repo
       ansible.builtin.deb822_repository:
@@ -110,7 +105,21 @@
         enabled: true
         state: present
       when: install_docker
- 
+
+    - name: Add NetBird Repo
+      ansible.builtin.deb822_repository:
+        name: netbird
+        types: deb
+        uris: https://pkgs.netbird.io/debian
+        suites: stable
+        components:
+          - main
+        architectures: amd64
+        signed_by: https://pkgs.netbird.io/debian/public.key
+        enabled: true
+        state: present
+      when: install_netbird
+
     - name: Install Docker Engine
       apt:
         name:
@@ -129,22 +138,14 @@
         state: started
       when: install_docker
 
-
-    - name: Add NetBird Repo
-      ansible.builtin.deb822_repository:
-        name: netbird
-        types: deb
-        uris: https://pkgs.netbird.io/debian
-        suites: stable
-        components:
-          - main
-        architectures: "{{ ansible_architecture }}"
-        signed_by: https://pkgs.netbird.io/debian/public.key
-        enabled: true
+    - name: Install NetBird
+      apt:
+        name:
+          - netbird
         state: present
+        update_cache: yes
       when: install_netbird
 
- 
     - name: Add user 'node' to docker group
       user:
         name: node
